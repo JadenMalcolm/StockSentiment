@@ -49,7 +49,7 @@ def evaluate_model(model, test_loader):
 
     for i in range(cm.shape[0]):
         for j in range(cm.shape[1]):
-            ax.text(j, i, f'{cm[i, j]}', ha='center', va='center', color='white' if cm[i, j] > cm.max()/2 else 'black')
+            ax.text(j, i, f'{cm[i, j]}', ha='center', va='center', color='red')
 
     plt.title('Confusion Matrix')
     plt.xlabel('Predicted Values')

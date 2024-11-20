@@ -1,4 +1,3 @@
-# model.py
 import torch
 import torch.nn as nn
 
@@ -14,7 +13,7 @@ class StockSentimentLSTM(nn.Module):
         
         self.fc = nn.Linear(hidden_dim, output_dim)
         
-        self.dropout = nn.Dropout(p=0.2)
+        self.dropout = nn.Dropout(p=0.1)
         
     def forward(self, text):
         embedded = self.embedding(text)
