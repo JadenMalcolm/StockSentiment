@@ -1,17 +1,18 @@
 import pandas as pd
-import tensorflow as tf
-from tensorflow.keras.preprocessing.text import Tokenizer
-from tensorflow.keras.preprocessing.sequence import pad_sequences
 import torch
+import pickle
 import nltk
 from nltk.corpus import stopwords
 from nltk.stem import PorterStemmer
-import pickle
+from tensorflow.keras.preprocessing.text import Tokenizer
+from tensorflow.keras.preprocessing.sequence import pad_sequences
+
 stop_words = set(stopwords.words('english'))
 ps = PorterStemmer()
 
 MAX_NB_WORDS = 10000
 MAX_SEQUENCE_LENGTH = 20
+
 def full_corpus(file_path, pickle_path='full_corpus.pkl'):
     try:
         with open(pickle_path, 'rb') as file:
@@ -26,13 +27,11 @@ def full_corpus(file_path, pickle_path='full_corpus.pkl'):
         with open(pickle_path, 'wb') as file:
             pickle.dump(corpus, file)
         print(f"Full corpus pickled at {pickle_path}.")
-
     return corpus
 
 def preprocess_corpus(corpus):
     if isinstance(corpus, str):
         corpus = [corpus]
-
     cleaned_corpus = []
     for headline in corpus:
         words = headline.split()
@@ -55,33 +54,32 @@ def prepare_data(train_corpus, test_corpus):
 
     return X_train_pad, X_test_pad, vocab_size
 
-def prepare_single_input(input_text, corpus):
+def prepare_single_input(input_text, corpus, device):
     cleaned_text = preprocess_corpus(input_text)
     tokenizer = Tokenizer(num_words=MAX_NB_WORDS)
     tokenizer.fit_on_texts(corpus)
     input_seq = tokenizer.texts_to_sequences(cleaned_text)
     input_pad = pad_sequences(input_seq, maxlen=MAX_SEQUENCE_LENGTH)
-    input_tensor = torch.tensor(input_pad, dtype=torch.long)
-
+    input_tensor = torch.tensor(input_pad, dtype=torch.long).to(device)
     return input_tensor
 
 def load_and_preprocess_data(file_path, pickle_path='loader.pkl'):
     try:
         with open(pickle_path, 'rb') as file:
-            X_train_pad, y_train, X_test_pad, y_test, vocab_size = pickle.load(file)
+            X_train_pad, y_train, sentiment_train, X_test_pad, y_test, sentiment_test, vocab_size = pickle.load(file)
         print("Loaded preprocessed data from pickle.")
-    
     except FileNotFoundError:
         print("Pickle file not found. Preprocessing corpus")
-
         df = pd.read_csv(file_path, encoding='ISO-8859-1')
         df = df.dropna()
 
         train = df[df['Date'] < '20150101']
         test = df[df['Date'] > '20141231']
-        
+
         y_train = train['Label'].values
         y_test = test['Label'].values
+        sentiment_train = train['Sentiment'].values  # Added to read sentiment
+        sentiment_test = test['Sentiment'].values  # Added to read sentiment
 
         train_headlines = train.iloc[:, 3:28].astype(str).apply(' '.join, axis=1)
         test_headlines = test.iloc[:, 3:28].astype(str).apply(' '.join, axis=1)
@@ -92,11 +90,12 @@ def load_and_preprocess_data(file_path, pickle_path='loader.pkl'):
         X_train_pad, X_test_pad, vocab_size = prepare_data(train_corpus, test_corpus)
 
         with open(pickle_path, 'wb') as file:
-            pickle.dump((X_train_pad, y_train, X_test_pad, y_test, vocab_size), file)
+            pickle.dump((X_train_pad, y_train, sentiment_train, X_test_pad, y_test, sentiment_test, vocab_size), file)
         print(f"Preprocessed data pickled at {pickle_path}.")
 
-    return torch.tensor(X_train_pad, dtype=torch.long), torch.tensor(y_train, dtype=torch.float32), \
-           torch.tensor(X_test_pad, dtype=torch.long), torch.tensor(y_test, dtype=torch.float32), vocab_size
+    return torch.tensor(X_train_pad, dtype=torch.long), torch.tensor(y_train, dtype=torch.float32), torch.tensor(sentiment_train, dtype=torch.float32), \
+           torch.tensor(X_test_pad, dtype=torch.long), torch.tensor(y_test, dtype=torch.float32), torch.tensor(sentiment_test, dtype=torch.float32), vocab_size
+
 
 
 def words_in_corpus(words_to_check, corpus):
